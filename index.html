@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simpson's Paradox & Log-Linear Models in R | پارادوکس سیمپسون و مدل‌های لگ‌خطی</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --surface: #ffffff;
+      --surface-alt: #f8fafc;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #e2e8f0;
+      --primary: #0f4c81;
+      --primary-light: #e6f0fa;
+      --accent: #0d9488;
+      --accent-light: #e6f7f5;
+      --warn: #b45309;
+      --warn-bg: #fef3c7;
+      --warn-border: #fcd34d;
+      --success: #15803d;
+      --success-bg: #dcfce7;
+      --danger: #b91c1c;
+      --danger-bg: #fee2e2;
+      --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05);
+      --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.06);
+      --radius: 14px;
+      --font-en: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-fa: 'Vazirmatn', Tahoma, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-en);
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body[data-lang="fa"] {
+      font-family: var(--font-fa);
+      line-height: 1.85;
+    }
+
+    /* Enforce LTR on formulas, equations, and code blocks even inside RTL mode */
+    .ltr,
+    .math-box,
+    code,
+    pre {
+      direction: ltr;
+      unicode-bidi: isolate;
+      font-family: var(--font-mono);
+    }
+
+    .formula-inline {
+      direction: ltr;
+      unicode-bidi: isolate;
+      font-family: var(--font-mono);
+      font-size: 0.9em;
+      background: #f1f5f9;
+      color: #0f172a;
+      padding: 0.12rem 0.45rem;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+      display: inline-block;
+    }
+
+    /* Top Navigation Bar */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .topbar-inner {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0.85rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      font-weight: 800;
+      font-size: 1rem;
+      color: var(--primary);
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      letter-spacing: 0.04em;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .lang-switch,
+    .tab-switch {
+      display: inline-flex;
+      background: #eef2f6;
+      padding: 0.22rem;
+      border-radius: 10px;
+      gap: 0.2rem;
+    }
+
+    .btn-toggle {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.4rem 0.8rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-toggle.active {
+      background: var(--surface);
+      color: var(--primary);
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+    }
+
+    /* Main Container */
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    /* Hero Section */
+    .hero {
+      background: linear-gradient(135deg, #0f4c81 0%, #16324f 60%, #0d5c63 100%);
+      color: #fff;
+      border-radius: 20px;
+      padding: 2.25rem 2.25rem;
+      box-shadow: var(--shadow-md);
+      margin-bottom: 1.75rem;
+    }
+
+    .hero-eyebrow {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 0.85rem;
+    }
+
+    .hero h1 {
+      margin: 0 0 0.75rem;
+      font-size: clamp(1.55rem, 3vw, 2.25rem);
+      font-weight: 800;
+      line-height: 1.25;
+    }
+
+    .hero p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.88);
+      max-width: 820px;
+      font-size: 1rem;
+    }
+
+    /* KPI Strip */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.75rem;
+    }
+
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.15rem 1.25rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .kpi-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+
+    body[data-lang="fa"] .kpi-label {
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .kpi-value {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 0.2rem;
+    }
+
+    .kpi-sub {
+      font-size: 0.84rem;
+      color: var(--muted);
+    }
+
+    /* Analysis Switcher Banner */
+    .analysis-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.75rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .analysis-banner-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+
+    /* Cards & Sections */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.6rem;
+      margin-bottom: 1.5rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-title {
+      margin: 0;
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--primary);
+    }
+
+    .tag {
+      font-size: 0.76rem;
+      font-weight: 700;
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      background: var(--primary-light);
+      color: var(--primary);
+      white-space: nowrap;
+    }
+
+    .tag.teal {
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+
+    .tag.amber {
+      background: var(--warn-bg);
+      color: var(--warn);
+    }
+
+    /* Callouts */
+    .callout {
+      border-radius: 12px;
+      padding: 1rem 1.2rem;
+      margin: 1rem 0;
+      border-inline-start: 4px solid var(--primary);
+      background: var(--primary-light);
+    }
+
+    .callout.success {
+      border-inline-start-color: var(--success);
+      background: var(--success-bg);
+    }
+
+    .callout.warn {
+      border-inline-start-color: var(--warn);
+      background: var(--warn-bg);
+      border-color: var(--warn-border);
+      border-inline-start-width: 4px;
+    }
+
+    .callout-title {
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+    }
+
+    /* Tables */
+    .table-wrap {
+      overflow-x: auto;
+      margin: 1rem 0;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+    }
+
+    th {
+      background: #f1f5f9;
+      color: var(--text);
+      font-weight: 700;
+      padding: 0.75rem 0.9rem;
+      text-align: start;
+      border-bottom: 2px solid var(--border);
+    }
+
+    td {
+      padding: 0.7rem 0.9rem;
+      border-bottom: 1px solid var(--border);
+      text-align: start;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:nth-child(even) td {
+      background: #fafbfd;
+    }
+
+    .pill-pass {
+      background: var(--success-bg);
+      color: var(--success);
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      display: inline-block;
+    }
+
+    .pill-fail {
+      background: var(--danger-bg);
+      color: var(--danger);
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      display: inline-block;
+    }
+
+    /* Math Equations Box */
+    .math-box {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 0.9rem 1.15rem;
+      border-radius: 10px;
+      margin: 0.75rem 0;
+      font-size: 0.88rem;
+      overflow-x: auto;
+      line-height: 1.65;
+    }
+
+    /* Code Block */
+    pre {
+      background: #0b1220;
+      color: #f8fafc;
+      padding: 1.15rem 1.25rem;
+      border-radius: 12px;
+      overflow-x: auto;
+      font-size: 0.84rem;
+      line-height: 1.6;
+      border: 1px solid #1e293b;
+      margin: 0.75rem 0;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      padding: 1.5rem 0 2.5rem;
+    }
+  </style>
+</head>
+<body data-lang="en">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-badge">R • LOG-LINEAR</span>
+        <span class="lang-en">Simpson's Paradox &amp; Categorical Analysis</span>
+        <span class="lang-fa hidden">پارادوکس سیمپسون و تحلیل داده‌های طبقه‌ای</span>
+      </div>
+
+      <div class="controls">
+        <div class="lang-switch" role="group" aria-label="Language Switcher">
+          <button type="button" class="btn-toggle active" data-set-lang="en">English (LTR)</button>
+          <button type="button" class="btn-toggle" data-set-lang="fa">فارسی (RTL)</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-eyebrow lang-en">Statistical Case Study • N = 500 Clinical Cohort</div>
+      <div class="hero-eyebrow lang-fa hidden">مطالعه موردی آماری • نمونه بالینی N = 500</div>
+
+      <h1 class="lang-en">Simpson's Paradox &amp; Log-Linear Models in R</h1>
+      <h1 class="lang-fa hidden">تحلیل آماری پارادوکس سیمپسون و مدل‌های لگ‌خطی در R</h1>
+
+      <p class="lang-en">
+        A complete comparative statistical report examining Drug A vs. Drug B cholesterol reduction outcomes across High and Normal baseline cholesterol strata—combining marginal vs. conditional contingency tables, log-linear models (<code>loglm</code>), ANOVA model selection, fourth-root odds ratios, and a critical evaluation of the non-significant three-way interaction (<code>TCO</code>).
+      </p>
+      <p class="lang-fa hidden">
+        گزارش تحلیلی جامع مقایسه اثربخشی داروی A و داروی B در کاهش کلسترول به تفکیک سطوح کلسترول بالا و نرمال—شامل مقایسه جداول حاشیه‌ای و شرطی، برازش مدل‌های لگ‌خطی (<code>loglm</code>)، آزمون ANOVA، محاسبه نسبت شانس‌ها و نقد علمی عدم معناداری اثر متقابل سه‌گانه (<code>TCO</code>).
+      </p>
+    </section>
+
+    <!-- KPI CARDS -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label lang-en">Marginal Success Rate</div>
+        <div class="kpi-label lang-fa hidden">نرخ موفقیت حاشیه‌ای</div>
+        <div class="kpi-value ltr">A: 76% vs B: 70%</div>
+        <div class="kpi-sub lang-en">Apparent edge for Drug A (non-significant, p = 0.121)</div>
+        <div class="kpi-sub lang-fa hidden">برتری ظاهری داروی A (غیرمعنادار، p = 0.121)</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label lang-en">Conditional Success Rate</div>
+        <div class="kpi-label lang-fa hidden">نرخ موفقیت شرطی</div>
+        <div class="kpi-value ltr">B Wins Both Strata</div>
+        <div class="kpi-sub ltr">High: 90% vs 80% • Normal: 65% vs 60%</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label lang-en">Parsimonious Log-Linear Model</div>
+        <div class="kpi-label lang-fa hidden">مدل لگ‌خطی بهینه</div>
+        <div class="kpi-value ltr">l2: [TC][CO]</div>
+        <div class="kpi-sub ltr">G² = 3.457, df = 2, p = 0.178 (T ⟂ O | C)</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-label lang-en">Three-Way Interaction (TCO)</div>
+        <div class="kpi-label lang-fa hidden">اثر متقابل سه‌گانه (TCO)</div>
+        <div class="kpi-value ltr">Not Sig. (p = 0.305)</div>
+        <div class="kpi-sub lang-en">ΔG² = 1.054, df = 1 • Descriptive paradox via confounding</div>
+      </div>
+    </section>
+
+    <!-- ANALYSIS VIEW SWITCHER -->
+    <section class="analysis-banner">
+      <div class="analysis-banner-title lang-en">
+        Select Analysis Perspective (Two Complementary Views Included):
+      </div>
+      <div class="analysis-banner-title lang-fa hidden">
+        انتخاب دیدگاه تحلیلی (هر دو تحلیل مکمل در دسترس هستند):
+      </div>
+
+      <div class="tab-switch" role="tablist">
+        <button type="button" class="btn-toggle active" data-set-view="both">
+          <span class="lang-en">Both Analyses (Complete)</span>
+          <span class="lang-fa hidden">هر دو تحلیل (کامل)</span>
+        </button>
+        <button type="button" class="btn-toggle" data-set-view="a1">
+          <span class="lang-en">Analysis 1: OR &amp; Model Structure</span>
+          <span class="lang-fa hidden">تحلیل ۱: نسبت شانس و ساختار مدل</span>
+        </button>
+        <button type="button" class="btn-toggle" data-set-view="a2">
+          <span class="lang-en">Analysis 2: 5 Q&amp;As &amp; TCO Critique</span>
+          <span class="lang-fa hidden">تحلیل ۲: پاسخ ۵ سؤال و نقد TCO</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- DATASET SUMMARY -->
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title lang-en">0. Dataset Summary (3-Way Contingency Table, N = 500)</h2>
+        <h2 class="card-title lang-fa hidden">۰. خلاصه داده‌ها (جدول توافقی سه‌گانه، N = 500)</h2>
+        <span class="tag teal">ftable</span>
+      </div>
+
+      <p class="lang-en">
+        Simulated clinical data with <code>Treatment</code> (<code>Drug A</code>, <code>Drug B</code>), baseline <code>Chol_Level</code> (<code>High</code>, <code>Normal</code>), and <code>Outcome</code> (<code>Reduced</code>, <code>Not Reduced</code>).
+      </p>
+      <p class="lang-fa hidden">
+        داده‌های شبیه‌سازی‌شده شامل متغیر درمان (<code>Treatment</code>)، سطح کلسترول پایه (<code>Chol_Level</code>) و پیامد کاهش کلسترول (<code>Outcome</code>) است.
+      </p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="ltr">Treatment</th>
+              <th class="ltr">Chol_Level</th>
+              <th class="ltr">Reduced</th>
+              <th class="ltr">Not Reduced</th>
+              <th class="lang-en">Stratum n</th>
+              <th class="lang-fa hidden">حجم گروه (n)</th>
+              <th class="lang-en">Success Rate</th>
+              <th class="lang-fa hidden">نرخ موفقیت</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="ltr"><strong>Drug A</strong></td>
+              <td class="ltr">High</td>
+              <td class="ltr">160</td>
+              <td class="ltr">40</td>
+              <td class="ltr">200</td>
+              <td class="ltr"><strong>80.0%</strong></td>
+            </tr>
+            <tr>
+              <td class="ltr"><strong>Drug A</strong></td>
+              <td class="ltr">Normal</td>
+              <td class="ltr">30</td>
+              <td class="ltr">20</td>
+              <td class="ltr">50</td>
+              <td class="ltr"><strong>60.0%</strong></td>
+            </tr>
+            <tr>
+              <td class="ltr"><strong>Drug B</strong></td>
+              <td class="ltr">High</td>
+              <td class="ltr">45</td>
+              <td class="ltr">5</td>
+              <td class="ltr">50</td>
+              <td class="ltr"><strong>90.0%</strong></td>
+            </tr>
+            <tr>
+              <td class="ltr"><strong>Drug B</strong></td>
+              <td class="ltr">Normal</td>
+              <td class="ltr">130</td>
+              <td class="ltr">70</td>
+              <td class="ltr">200</td>
+              <td class="ltr"><strong>65.0%</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ANALYSIS 1 SECTION -->
+    <div id="view-a1">
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title lang-en">Analysis 1: Marginal vs. Conditional Tables, Log-Linear Models &amp; Fourth-Root ORs</h2>
+          <h2 class="card-title lang-fa hidden">تحلیل ۱: جداول حاشیه‌ای و شرطی، مدل‌های لگ‌خطی و نسبت شانس‌ها</h2>
+          <span class="tag">Analysis I</span>
+        </div>
+
+        <h3 class="lang-en">1.1 Paradox Reversal Across Marginal and Conditional Views</h3>
+        <h3 class="lang-fa hidden">۱.۱ وارونگی نتیجه در جدول حاشیه‌ای در برابر جداول شرطی</h3>
+
+        <ul class="lang-en">
+          <li><strong>Marginal table (ignoring cholesterol):</strong> Drug A achieves <strong>76%</strong> (<span class="formula-inline">190 / 250</span>) vs. Drug B at <strong>70%</strong> (<span class="formula-inline">175 / 250</span>), making Drug A appear superior marginally.</li>
+          <li><strong>Conditional tables (controlling for cholesterol):</strong> Drug B outperforms Drug A in <strong>both</strong> strata—<strong>90% vs. 80%</strong> in <code>High</code> cholesterol, and <strong>65% vs. 60%</strong> in <code>Normal</code> cholesterol.</li>
+          <li><strong>Root cause:</strong> Imbalanced treatment allocation (<span class="formula-inline">200/250 = 80%</span> of Drug A patients have High cholesterol vs. <span class="formula-inline">50/250 = 20%</span> of Drug B patients) combined with higher overall reduction rates in the High cholesterol group.</li>
+        </ul>
+
+        <ul class="lang-fa hidden">
+          <li><strong>جدول حاشیه‌ای (نادیده گرفتن کلسترول):</strong> نرخ موفقیت داروی A برابر <strong>۷۶٪</strong> (<span class="formula-inline">190 / 250</span>) و داروی B برابر <strong>۷۰٪</strong> (<span class="formula-inline">175 / 250</span>) است؛ بنابراین به‌صورت ظاهری داروی A بهتر به نظر می‌رسد.</li>
+          <li><strong>جداول شرطی (کنترل سطح کلسترول):</strong> داروی B در <strong>هر دو</strong> گروه عملکرد بهتری دارد؛ در کلسترول بالا <strong>۹۰٪ در برابر ۸۰٪</strong> و در کلسترول نرمال <strong>۶۵٪ در برابر ۶۰٪</strong>.</li>
+          <li><strong>علت وقوع:</strong> تخصیص نامتوازن بیماران به داروها (<span class="formula-inline">80%</span> بیماران گروه A کلسترول بالا دارند در مقابل <span class="formula-inline">20%</span> در گروه B) و نرخ موفقیت بالاتر در گروه کلسترول بالا.</li>
+        </ul>
+
+        <h3 class="lang-en">1.2 Log-Linear Models (<code>loglm</code>) &amp; ANOVA Comparison</h3>
+        <h3 class="lang-fa hidden">۱.۲ برازش مدل‌های لگ‌خطی (<code>loglm</code>) و جدول ANOVA</h3>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="ltr">Model</th>
+                <th class="ltr">Notation</th>
+                <th class="ltr">G² (Deviance)</th>
+                <th class="ltr">df</th>
+                <th class="ltr">P-value</th>
+                <th class="lang-en">Fit Interpretation</th>
+                <th class="lang-fa hidden">تفسیر برازش</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="ltr"><strong>l1</strong> (Mutual Indep.)</td>
+                <td class="ltr">[T][C][O]</td>
+                <td class="ltr">217.05</td>
+                <td class="ltr">4</td>
+                <td class="ltr">0.000</td>
+                <td><span class="pill-fail">Rejected</span> <span class="lang-en">Variables are not mutually independent.</span><span class="lang-fa hidden">رد می‌شود؛ متغیرها مستقل نیستند.</span></td>
+              </tr>
+              <tr>
+                <td class="ltr"><strong>l2</strong> (Conditional Indep.)</td>
+                <td class="ltr">[TC][CO]</td>
+                <td class="ltr">3.46</td>
+                <td class="ltr">2</td>
+                <td class="ltr">0.178</td>
+                <td><span class="pill-pass">Good Fit</span> <span class="lang-en">Supports T ⟂ O | C.</span><span class="lang-fa hidden">مؤید استقلال شرطی T ⟂ O | C است.</span></td>
+              </tr>
+              <tr>
+                <td class="ltr"><strong>l3</strong> (Homogeneous Assoc.)</td>
+                <td class="ltr">[TC][CO][TO]</td>
+                <td class="ltr">1.05</td>
+                <td class="ltr">1</td>
+                <td class="ltr">0.305</td>
+                <td><span class="pill-pass">Good Fit</span> <span class="lang-en">Constant odds ratios across strata.</span><span class="lang-fa hidden">نسبت شانس‌ها در دو گروه همگن است.</span></td>
+              </tr>
+              <tr>
+                <td class="ltr"><strong>l4</strong> (Saturated)</td>
+                <td class="ltr">[TCO]</td>
+                <td class="ltr">0.00</td>
+                <td class="ltr">0</td>
+                <td class="ltr">1.000</td>
+                <td><span class="lang-en">Exact / Saturated baseline.</span><span class="lang-fa hidden">برازش کامل (اشباع).</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="lang-en">
+          <strong>ANOVA stepwise takeaways:</strong> <code>l1 → l2</code> drops deviance by <span class="formula-inline">ΔG² = 213.60</span> (<span class="formula-inline">df = 2, p &lt; 0.0001</span>), proving <code>[TC]</code> and <code>[CO]</code> are essential. Adding <code>[TO]</code> (<code>l2 → l3</code>) reduces deviance by only <span class="formula-inline">2.40</span> (<span class="formula-inline">df = 1, p = 0.121</span>), so <strong><code>l2</code></strong> is parsimonious at <span class="formula-inline">α = 0.05</span>. Dropping <code>[TCO]</code> (<code>l3 → l4</code>) adds only <span class="formula-inline">1.05</span> (<span class="formula-inline">df = 1, p = 0.305</span>), confirming homogeneous association.
+        </p>
+        <p class="lang-fa hidden">
+          <strong>نکات کلیدی ANOVA:</strong> انتقال از <code>l1</code> به <code>l2</code> انحراف را <span class="formula-inline">ΔG² = 213.60</span> کاهش می‌دهد (<span class="formula-inline">df = 2, p &lt; 0.0001</span>) که اهمیت <code>[TC]</code> و <code>[CO]</code> را نشان می‌دهد. افزودن <code>[TO]</code> در <code>l2 → l3</code> تنها <span class="formula-inline">2.40</span> کاهش انحراف ایجاد می‌کند (<span class="formula-inline">p = 0.121</span>)؛ پس در سطح ۵٪ مدل <strong><code>l2</code></strong> ساده‌تر و کافی است. همچنین <code>l3 → l4</code> (<span class="formula-inline">ΔG² = 1.05, p = 0.305</span>) همگنی نسبت شانس‌ها را تأیید می‌کند.
+        </p>
+
+        <h3 class="lang-en">1.3 Computing Odds Ratios from <code>exp(coef(l3))</code> (Sum-to-Zero Parameterization)</h3>
+        <h3 class="lang-fa hidden">۱.۳ محاسبه نسبت شانس واقعی از خروجی <code>exp(coef(l3))</code></h3>
+
+        <p class="lang-en">
+          Because <code>loglm</code> uses sum-to-zero constraints, each entry in <code>exp(coef(l3))</code> corresponds to the <strong>fourth root</strong> of the odds ratio. Raising the values to the 4th power yields:
+        </p>
+        <p class="lang-fa hidden">
+          از آنجا که تابع <code>loglm</code> از قید مجموع‌صفر استفاده می‌کند، مقادیر <code>exp(coef(l3))</code> معادل <strong>ریشه چهارم نسبت شانس</strong> هستند و برای یافتن نسبت شانس واقعی باید به توان ۴ برسند:
+        </p>
+
+        <div class="math-box">
+          OR(T x C) = (2.046)^4 ≈ 17.52
+          OR(C x O) = (1.345)^4 ≈ 3.27
+          OR(T x O | C, Drug B vs A) = (1.106)^4 ≈ 1.50   [Marginal OR(A vs B) = (190 * 75) / (60 * 175) = 1.36]
+        </div>
+      </section>
+    </div>
+
+    <!-- ANALYSIS 2 SECTION -->
+    <div id="view-a2">
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title lang-en">Analysis 2: Answers to Five Key Questions &amp; Three-Way Interaction Critique</h2>
+          <h2 class="card-title lang-fa hidden">تحلیل ۲: پاسخ به پنج سؤال کلیدی و نقد اثر متقابل سه‌گانه</h2>
+          <span class="tag teal">Analysis II</span>
+        </div>
+
+        <!-- Q1 -->
+        <h3 class="lang-en">Q1. Marginal Table — Which Drug Is Better Overall?</h3>
+        <h3 class="lang-fa hidden">سؤال ۱. جدول حاشیه‌ای — کدام دارو در کل بهتر است؟</h3>
+        <p class="lang-en">
+          <strong>Drug A</strong> appears better overall (<strong>76.0%</strong> vs. <strong>70.0%</strong>, marginal <span class="formula-inline">OR = 1.36</span> favoring A), but the difference is <strong>not statistically significant</strong> (<span class="formula-inline">χ² ≈ 2.28, df = 1, p ≈ 0.13</span>; LR <span class="formula-inline">ΔG² = 2.40, p = 0.121</span>).
+        </p>
+        <p class="lang-fa hidden">
+          در کل (بدون کنترل کلسترول)، <strong>Drug A</strong> بهتر به نظر می‌رسد (<strong>۷۶.۰٪</strong> در برابر <strong>۷۰.۰٪</strong> با <span class="formula-inline">OR = 1.36</span>)، اما این برتری از نظر آماری <strong>معنادار نیست</strong> (<span class="formula-inline">χ² ≈ 2.28, p ≈ 0.13</span>؛ در ANOVA سطر <code>l2 → l3</code>: <span class="formula-inline">ΔG² = 2.40, p = 0.121</span>).
+        </p>
+
+        <!-- Q2 -->
+        <h3 class="lang-en">Q2. Conditional Tables — Stratified by Cholesterol Level</h3>
+        <h3 class="lang-fa hidden">سؤال ۲. جداول شرطی — به تفکیک سطح کلسترول</h3>
+        <div class="grid-2">
+          <div class="callout success">
+            <div class="callout-title ltr">High Cholesterol (High)</div>
+            <p class="lang-en"><strong>Drug B wins: 90%</strong> (45/50) vs. <strong>80%</strong> (160/200). <span class="formula-inline">OR(A vs B) = 0.444</span> (<span class="formula-inline">OR(B vs A) = 2.25</span>), <span class="formula-inline">p ≈ 0.11</span>.</p>
+            <p class="lang-fa hidden"><strong>برتری Drug B: ۹۰٪</strong> (45/50) در برابر <strong>۸۰٪</strong> (160/200). <span class="formula-inline">OR(A vs B) = 0.444</span> (<span class="formula-inline">OR(B vs A) = 2.25</span>)، <span class="formula-inline">p ≈ 0.11</span>.</p>
+          </div>
+          <div class="callout success">
+            <div class="callout-title ltr">Normal Cholesterol (Normal)</div>
+            <p class="lang-en"><strong>Drug B wins: 65%</strong> (130/200) vs. <strong>60%</strong> (30/50). <span class="formula-inline">OR(A vs B) = 0.808</span> (<span class="formula-inline">OR(B vs A) = 1.24</span>), <span class="formula-inline">p ≈ 0.51</span>. Mantel–Haenszel <span class="formula-inline">OR_MH(A vs B) ≈ 0.66</span>.</p>
+            <p class="lang-fa hidden"><strong>برتری Drug B: ۶۵٪</strong> (130/200) در برابر <strong>۶۰٪</strong> (30/50). <span class="formula-inline">OR(A vs B) = 0.808</span> (<span class="formula-inline">OR(B vs A) = 1.24</span>)، <span class="formula-inline">p ≈ 0.51</span>. نسبت شانس مانتل–هنزل <span class="formula-inline">OR_MH ≈ 0.66</span>.</p>
+          </div>
+        </div>
+
+        <!-- Q3 -->
+        <h3 class="lang-en">Q3. Did Simpson's Paradox Occur?</h3>
+        <h3 class="lang-fa hidden">سؤال ۳. آیا پارادوکس سیمپسون رخ داده است؟</h3>
+        <p class="lang-en">
+          <strong>Yes — descriptively.</strong> Marginal comparison favors A (76% &gt; 70%), whereas both conditional strata favor B (90% &gt; 80% and 65% &gt; 60%). Weighted averages explain the reversal:
+        </p>
+        <p class="lang-fa hidden">
+          <strong>بله — به‌صورت توصیفی رخ داده است.</strong> در جدول حاشیه‌ای A برتر است (۷۶٪ در برابر ۷۰٪) اما در هر دو زیرگروه شرطی B برتر است (۹۰٪ در برابر ۸۰٪ و ۶۵٪ در برابر ۶۰٪). میانگین وزنی علت را نشان می‌دهد:
+        </p>
+        <div class="math-box">
+          Drug A: (0.80 * 80%) + (0.20 * 60%) = 76.0%
+          Drug B: (0.20 * 90%) + (0.80 * 65%) = 70.0%
+          Confounding strength: OR(T x C) = 16  and  OR(C x O) = 2.56 (82% success in High vs 64% in Normal)
+        </div>
+
+        <!-- Q4 -->
+        <h3 class="lang-en">Q4. Log-Linear Model Fit &amp; Parameter Direction</h3>
+        <h3 class="lang-fa hidden">سؤال ۴. برازش مدل‌های لگ‌خطی و جهت ضرایب</h3>
+        <p class="lang-en">
+          <strong><code>l1</code></strong> (<span class="formula-inline">[T][C][O]</span>, <span class="formula-inline">G² = 217.05, df = 4, p &lt; 0.001</span>) is rejected. <strong><code>l2</code></strong> (<span class="formula-inline">[TC][CO]</span>, <span class="formula-inline">G² = 3.457, df = 2, p = 0.178</span>) fits well, capturing conditional independence <span class="formula-inline">T ⟂ O | C</span> alongside marginal association. In <code>exp(coef(l3))</code>, <code>Treatment:Outcome</code> for A vs. Reduced is <span class="formula-inline">0.904 &lt; 1</span>, aligning with lower odds for A conditional on cholesterol.
+        </p>
+        <p class="lang-fa hidden">
+          مدل <strong><code>l1</code></strong> (<span class="formula-inline">[T][C][O]</span> با <span class="formula-inline">G² = 217.05, p &lt; 0.001</span>) رد می‌شود. مدل <strong><code>l2</code></strong> (<span class="formula-inline">[TC][CO]</span> با <span class="formula-inline">G² = 3.457, df = 2, p = 0.178</span>) برازش خوبی دارد و بیانگر استقلال شرطی <span class="formula-inline">T ⟂ O | C</span> همراه با وابستگی حاشیه‌ای است. در <code>exp(coef(l3))</code> نیز مقدار متناظر A و Reduced برابر <span class="formula-inline">0.904 &lt; 1</span> است که با شانس کمتر A به شرط کلسترول هم‌جهت است.
+        </p>
+
+        <!-- Q5 -->
+        <h3 class="lang-en">Q5. ANOVA &amp; Crucial Correction on Three-Way Interaction (<code>TCO</code>)</h3>
+        <h3 class="lang-fa hidden">سؤال ۵. آزمون ANOVA و نقد مهم درباره اثر متقابل سه‌گانه (<code>TCO</code>)</h3>
+
+        <div class="callout warn">
+          <div class="callout-title lang-en">⚠️ Assumption Correction: Three-Way Interaction (TCO) Is NOT Significant</div>
+          <div class="callout-title lang-fa hidden">⚠️ اصلاح فرض سؤال: اثر متقابل سه‌گانه (TCO) معنادار نیست</div>
+          <p class="lang-en">
+            In the ANOVA table, <code>l3 → l4</code> (adding <code>TCO</code>) yields <span class="formula-inline">ΔG² = 1.054, df = 1, p = 0.305</span> (not significant), and <code>l2 → l3</code> (adding <code>TO</code>) yields <span class="formula-inline">ΔG² = 2.402, df = 1, p = 0.121</span> (also not significant). Thus, the paradox is <strong>not</strong> proven via a significant three-way interaction—especially given small cell sizes (<span class="formula-inline">n = 50</span> in <code>A-Normal</code> and <code>B-High</code>).
+          </p>
+          <p class="lang-fa hidden">
+            در جدول ANOVA، انتقال از <code>l3</code> به <code>l4</code> (افزودن <code>TCO</code>) دارای <span class="formula-inline">ΔG² = 1.054, df = 1, p = 0.305</span> است (غیرمعنادار) و انتقال از <code>l2</code> به <code>l3</code> نیز <span class="formula-inline">ΔG² = 2.402, p = 0.121</span> است. بنابراین اثبات پارادوکس در این داده از مسیر معناداری <code>TCO</code> انجام نمی‌شود، به‌ویژه که سلول‌های <code>A-Normal</code> و <code>B-High</code> هر کدام <span class="formula-inline">n = 50</span> هستند و توان آزمون را محدود می‌کنند.
+          </p>
+        </div>
+
+        <p class="lang-en"><strong>Three complementary ways to demonstrate the paradox here:</strong></p>
+        <p class="lang-fa hidden"><strong>سه شاهد مکمل برای نشان دادن پارادوکس در این خروجی:</strong></p>
+        <ol class="lang-en">
+          <li><strong>Direction reversal:</strong> Marginal A &gt; B (76% vs. 70%), yet conditional B &gt; A in both strata (90% vs. 80% and 65% vs. 60%).</li>
+          <li><strong>Good fit of conditional independence model <code>l2</code> (<span class="formula-inline">p = 0.178</span>):</strong> Consistent with <span class="formula-inline">T ⟂ O | C</span> despite an apparent marginal difference.</li>
+          <li><strong>Strong confounding pathways:</strong> <span class="formula-inline">OR(T x C) = 16</span> and <span class="formula-inline">OR(C x O) = 2.56</span>, with <span class="formula-inline">l1 → l2</span> giving <span class="formula-inline">ΔG² = 213.6 (p &lt; 0.001)</span>.</li>
+        </ol>
+        <ol class="lang-fa hidden">
+          <li><strong>وارونگی جهت توصیفی:</strong> برتری ظاهری A در جدول حاشیه‌ای (۷۶٪ در برابر ۷۰٪) در برابر برتری B در هر دو گروه شرطی (۹۰٪ در برابر ۸۰٪ و ۶۵٪ در برابر ۶۰٪).</li>
+          <li><strong>برازندگی مدل استقلال شرطی <code>l2</code> (<span class="formula-inline">p = 0.178</span>):</strong> سازگاری داده‌ها با استقلال شرطی در عین وجود تفاوت حاشیه‌ای ظاهری.</li>
+          <li><strong>فعال بودن مسیرهای مخدوش‌گر:</strong> نسبت شانس‌های <span class="formula-inline">OR(T x C) = 16</span> و <span class="formula-inline">OR(C x O) = 2.56</span> همراه با کاهش شدید انحراف در <span class="formula-inline">l1 → l2</span> (<span class="formula-inline">ΔG² = 213.6, p &lt; 0.001</span>).</li>
+        </ol>
+      </section>
+    </div>
+
+    <!-- R CODE SECTION -->
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title lang-en">R Source Code</h2>
+        <h2 class="card-title lang-fa hidden">کد R اجرا شده</h2>
+        <span class="tag ltr">R / MASS</span>
+      </div>
+      <pre><code>set.seed(123)
+med_data &lt;- data.frame(
+  Treatment  = c(rep("Drug A", 200), rep("Drug A", 50),
+                 rep("Drug B", 50),  rep("Drug B", 200)),
+  Chol_Level = c(rep("High", 200),   rep("Normal", 50),
+                 rep("High", 50),    rep("Normal", 200)),
+  Outcome    = c(rep("Reduced", 160), rep("Not Reduced", 40),
+                 rep("Reduced", 30),  rep("Not Reduced", 20),
+                 rep("Reduced", 45),  rep("Not Reduced", 5),
+                 rep("Reduced", 130), rep("Not Reduced", 70))
+)
+
+med_table &lt;- table(Treatment  = med_data$Treatment,
+                   Chol_Level = med_data$Chol_Level,
+                   Outcome    = med_data$Outcome)
+
+marg_table &lt;- margin.table(med_table, margin = c(1, 3))
+prop.table(marg_table, margin = 1)
+
+for (lev in dimnames(med_table)$Chol_Level) {
+  print(med_table[, lev, ])
+  print(round(prop.table(med_table[, lev, ], margin = 1)[, "Reduced"], 3))
+}
+
+library(MASS)
+l1 &lt;- loglm(~ Treatment + Chol_Level + Outcome, data = med_table)
+l2 &lt;- loglm(~ Treatment * Chol_Level + Chol_Level * Outcome, data = med_table)
+l3 &lt;- loglm(~ (Treatment + Chol_Level + Outcome)^2, data = med_table)
+l4 &lt;- loglm(~ Treatment * Chol_Level * Outcome, data = med_table)
+
+anova(l1, l2, l3, l4)
+round(exp(coef(l3)$Treatment.Chol_Level), 3)
+round(exp(coef(l3)$Chol_Level.Outcome), 3)
+round(exp(coef(l3)$Treatment.Outcome), 3)</code></pre>
+    </section>
+  </main>
+
+  <footer>
+    <span class="lang-en">Bilingual Statistical Report (EN / FA) • Simpson's Paradox &amp; Log-Linear Models</span>
+    <span class="lang-fa hidden">گزارش آماری دوزبانه (انگلیسی / فارسی) • پارادوکس سیمپسون و مدل‌های لگ‌خطی</span>
+  </footer>
+
+  <script>
+    const langButtons = document.querySelectorAll('[data-set-lang]');
+    const viewButtons = document.querySelectorAll('[data-set-view]');
+
+    function setLanguage(lang) {
+      document.body.setAttribute('data-lang', lang);
+      document.documentElement.lang = lang;
+      document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
+
+      langButtons.forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.setLang === lang);
+      });
+
+      document.querySelectorAll('.lang-en').forEach((el) => {
+        el.classList.toggle('hidden', lang !== 'en');
+      });
+
+      document.querySelectorAll('.lang-fa').forEach((el) => {
+        el.classList.toggle('hidden', lang !== 'fa');
+      });
+    }
+
+    function setView(view) {
+      viewButtons.forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.setView === view);
+      });
+
+      const a1 = document.getElementById('view-a1');
+      const a2 = document.getElementById('view-a2');
+
+      if (view === 'both') {
+        a1.classList.remove('hidden');
+        a2.classList.remove('hidden');
+      } else if (view === 'a1') {
+        a1.classList.remove('hidden');
+        a2.classList.add('hidden');
+      } else {
+        a1.classList.add('hidden');
+        a2.classList.remove('hidden');
+      }
+    }
+
+    langButtons.forEach((btn) => {
+      btn.addEventListener('click', () => setLanguage(btn.dataset.setLang));
+    });
+
+    viewButtons.forEach((btn) => {
+      btn.addEventListener('click', () => setView(btn.dataset.setView));
+    });
+  </script>
+</body>
+</html>
