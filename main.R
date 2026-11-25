@@ -2,16 +2,7 @@ set.seed(123)
 
 # Simpson's Paradox demonstration data
 # Drug B is better within each cholesterol stratum, but appears worse marginally
-med_data <- data.frame(
-  Treatment  = c(rep("Drug A", 200), rep("Drug A", 50),
-                 rep("Drug B", 50),  rep("Drug B", 200)),
-  Chol_Level = c(rep("High", 200),   rep("Normal", 50),
-                 rep("High", 50),    rep("Normal", 200)),
-  Outcome    = c(rep("Reduced", 160), rep("Not Reduced", 40),   # A | High   : 80%
-                 rep("Reduced", 30),  rep("Not Reduced", 20),   # A | Normal : 60%
-                 rep("Reduced", 45),  rep("Not Reduced", 5),    # B | High   : 90%
-                 rep("Reduced", 130), rep("Not Reduced", 70))    # B | Normal : 65%
-)
+med_data <- read.csv("med_data.csv")
 
 # 3-way contingency table
 med_table <- table(Treatment  = med_data$Treatment,
